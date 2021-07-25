@@ -1,0 +1,11 @@
+# run 
+/vm
+.bochsrc
+
+
+# build
+*.bin
+*.img
+
+
+
