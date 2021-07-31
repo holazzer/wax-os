@@ -1,0 +1,8 @@
+编译：https://blog.csdn.net/longintchar/article/details/50557832
+
+$ gcc -m32 main.c -o main.o
+
+链接：https://blog.csdn.net/angou6476/article/details/101997934
+
+$ ld main.o -Ttext 0xc0001500 -o kernel.bin -e main -m elf_i386
+
