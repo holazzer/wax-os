@@ -51,4 +51,8 @@ PG_US_U equ 100b
 ;=== 内核                           
 KERNEL_START_SECTOR equ 0x9         ; 将内核文件放到9号扇区（从0开始数）
 KERNEL_BIN_BASE_ADDR equ 0x70000    ; 规定的位置而已，一个暂时存放数据的位置
+KERNEL_ENTRY_POINT equ 0xc0001500   ; 编译的时候把main函数放到了 0xc0001500 的位置，
+                                    ; 在main.c里可以看到反汇编的结果
+PT_NULL equ 0                       ; 空program header，不使用
+
 
