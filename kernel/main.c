@@ -4,7 +4,7 @@ int main(){
 }
 
 
-/***
+/*****************
 Disassembly of section .text:
 
 c0001500 <main>:
@@ -19,5 +19,12 @@ c000150d:       eb fe                   jmp    c000150d <main+0xd>
 c000150f <__x86.get_pc_thunk.ax>:
 c000150f:       8b 04 24                mov    (%esp),%eax
 c0001512:       c3                      ret
+
+*****************
+bochs:
+
+(0) [0x000000000000150d] 0008:00000000c000150d (unk. ctxt): jmp .-2 (0xc000150d)      ; ebfe
+
+
 ***/
 
