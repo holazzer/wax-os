@@ -1,5 +1,6 @@
 #include "print.h"
 void main(){
+    my_set_cursor(80*5);  // test constant folding
     put_char('k');
     put_char('e');
     put_char('r');

@@ -117,3 +117,26 @@ put_char:
 
 
 
+; ==== 把光标移动到第x个字的函数， x的值在0到2000
+global my_set_cursor
+my_set_cursor:
+    pushad
+    mov ebx, [esp+36]   ; 取位置
+
+    mov dx, 0x03d4
+    mov al, 0x0e
+    out dx, al
+    mov dx, 0x03d5
+    mov al, bh          ; 高8位
+    out dx, al
+
+    mov dx, 0x03d4
+    mov al, 0x0f
+    out dx, al
+    mov dx, 0x03d5
+    mov al, bl          ; 低8位
+    out dx, al
+
+    popad
+    ret
+
