@@ -2,6 +2,10 @@ TI_GDT equ 0
 RPL0 equ 0
 SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0
 
+section .data
+put_int_buffer dq 0     ; 8个字节的缓冲区 
+
+
 [bits 32]
 section .text
 ;======== put_char ===========
@@ -115,6 +119,28 @@ put_char:
     popad
     ret
 
+; ==== 打印字符串
+global put_str
+put_str:
+    push ebx
+    push ecx
+    xor ecx, ecx
+    mov ebx, [esp+12]
+
+.go_on:
+    mov cl, [ebx]
+    cmp cl, 0
+    jz .str_over
+    push ecx        ; 压入参数
+    call put_char   ; 调用put_char
+    add esp, 4      ; 回收栈空间
+    inc ebx
+    jmp .go_on
+
+.str_over:
+    pop ecx
+    pop ebx
+    ret
 
 
 ; ==== 把光标移动到第x个字的函数， x的值在0到2000
@@ -122,6 +148,8 @@ global my_set_cursor
 my_set_cursor:
     pushad
     mov ebx, [esp+36]   ; 取位置
+    cmp bx, 2000
+    jge .done            ; 如果给的数字大于等于2000，那么什么也不做
 
     mov dx, 0x03d4
     mov al, 0x0e
@@ -137,6 +165,63 @@ my_set_cursor:
     mov al, bl          ; 低8位
     out dx, al
 
+.done:
     popad
     ret
+
+
+; ====== put_int
+; 在屏幕上打印十六进制数字，不打印前缀0x
+global put_int
+put_int:
+    pushad                      ; 保存寄存器
+    mov ebp, esp                ; 基址
+    mov eax, [ebp + 4*9]        ; eax拿到待打印数字
+    mov edx, eax                ; 装入edx
+    mov edi, 7                  ; 在 put_int_buffer中的初始偏移量
+    mov ecx, 8                  ; 32位数字，在十六进制下最多8位
+    mov ebx, put_int_buffer     ; ebx装入基址
+
+.16based_4bits:
+    and edx, 0x0000000F         ; 取4bit，一位16进制数
+    cmp edx, 9                  ; 和9比大小
+    jg .isA2F                   ; 比9大，打印A-F
+    add edx, '0'                ; 不比9大，打印0-9
+    jmp .store                  ; 跳过.isA2F
+.isA2F:
+    sub edx, 10
+    add edx, 'A'                ; A-F
+.store:
+    mov [ebx+edi], dl           ; edi是偏移量，从7降低到0
+    dec edi                     ; edi--
+    shr eax, 4                  ; eax右移4位，低4位是下一位数字
+    mov edx, eax                ; edx是我们加'0'或者'A'用的，和eax的值保持同步
+    loop .16based_4bits         
+
+.ready_to_print:                ; 偏移量edi经过循环后，现在是-1
+    inc edi                     ; edi = 0
+.skip_prefix_0:
+    cmp edi, 8                  ; 如果edi=8，即全部跳过了，说明8位都是0
+    je .full0                   ; 
+.go_on_skip:
+    mov cl, [put_int_buffer + edi]  ; 待打印的字符放到cl
+    inc edi                         ; 偏移量++
+    cmp cl, '0'                     ; 和'0'比较，不打印多余的前缀0
+    je .skip_prefix_0               ; 跳过前缀0
+    dec edi                         ; 没跳过就不计数，偏移量恢复
+    jmp .put_each_num               ; 走到这里说明没有前缀0了，开始打印
+
+.full0:
+    mov cl, '0'                     ; 跳到这里说明全是0，打印一个0
+.put_each_num:
+    push ecx                        ; 参数压栈
+    call put_char                   
+    add esp, 4                      ; 调用后恢复栈
+    inc edi                         ; 偏移量++
+    mov cl, [put_int_buffer + edi]  ; 获取下一个打印的字符
+    cmp edi, 8                      ; 是不是打印完了
+    jl .put_each_num                ; 小于8，继续打印
+    popad                           ; 恢复寄存器
+    ret
+
 
