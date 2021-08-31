@@ -11,6 +11,11 @@
 
 #define IDT_DESC_CNT 0x21	 // 目前总共支持的中断数
 
+#define EFLAGS_IF 0x00000200
+#define GET_EFLAGS(EFLAG_VAR) asm volatile("pushfl; popl %0": "=g"(EFLAG_VAR))
+                                       // pushfl -> 将 eflags 寄存器压栈
+                                       // popl   -> 弹栈并送到指定的变量里
+
 /*中断门描述符结构体*/
 struct gate_desc {
    uint16_t    func_offset_low_word;
@@ -23,6 +28,9 @@ struct gate_desc {
 // 静态函数声明,非必须
 static void make_idt_desc(struct gate_desc* p_gdesc, uint8_t attr, intr_handler function);
 static struct gate_desc idt[IDT_DESC_CNT];   // idt是中断描述符表,本质上就是个中断门描述符数组
+
+char* intr_name[IDT_DESC_CNT];
+intr_handler idt_table[IDT_DESC_CNT];
 
 extern intr_handler intr_entry_table[IDT_DESC_CNT];	    // 声明引用定义在kernel.S中的中断处理函数入口数组
 
@@ -59,17 +67,51 @@ static void make_idt_desc(struct gate_desc* p_gdesc, uint8_t attr, intr_handler 
 
 /*初始化中断描述符表*/
 static void idt_desc_init(void) {
-   int i;
-   for (i = 0; i < IDT_DESC_CNT; i++) {
-      make_idt_desc(&idt[i], IDT_DESC_ATTR_DPL0, intr_entry_table[i]); 
-   }
+    int i;
+    for (i = 0; i < IDT_DESC_CNT; i++) {
+       make_idt_desc(&idt[i], IDT_DESC_ATTR_DPL0, intr_entry_table[i]); 
+    }
    put_str("   idt_desc_init done\n");
+}
+
+static void general_intr_handler(uint8_t vec_nr){
+   if(vec_nr == 0x27 || vec_nr == 0x2f) return;  // 伪中断 spurious interrupt
+   put_str("int vector: 0x"); put_int(vec_nr); put_char('\n');
+}
+
+static void exception_init(){
+   int i;
+   for(i=0;i<IDT_DESC_CNT;i++){
+      idt_table[i] = general_intr_handler;
+      intr_name[i] = "unknown";
+   }
+   intr_name[0] = "#DE Divide Error";
+   intr_name[1] = "#DB Debug Exception";
+   intr_name[2] = "NMI Interrupt";
+   intr_name[3] = "#BP Breakpoint Exception";
+   intr_name[4] = "#OF Overflow Exception";
+   intr_name[5] = "#BR BOUND Range Exceeded Exception";
+   intr_name[6] = "#UD Invalid Opcode Exception";
+   intr_name[7] = "#NM Device Not Available Exception";
+   intr_name[8] = "#DF Double Fault Exception";
+   intr_name[9] = "Coprocessor Segment Overrun";
+   intr_name[10] = "#TS Invalid TSS Exception";
+   intr_name[11] = "#NP Segment Not Present";
+   intr_name[12] = "#SS Stack Fault Exception";
+   intr_name[13] = "#GP General Protection Exception";
+   intr_name[14] = "#PF Page-Fault Exception";
+   // intr_name[15] 第15项是intel保留项，未使用
+   intr_name[16] = "#MF x87 FPU Floating-Point Error";
+   intr_name[17] = "#AC Alignment Check Exception";
+   intr_name[18] = "#MC Machine-Check Exception";
+   intr_name[19] = "#XF SIMD Floating-Point Exception";
 }
 
 /*完成有关中断的所有初始化工作*/
 void idt_init() {
    put_str("idt_init start\n");
    idt_desc_init();	   // 初始化中断描述符表
+   exception_init();
    pic_init();		   // 初始化8259A
 
    /* 加载idt */
@@ -77,4 +119,44 @@ void idt_init() {
    asm volatile("lidt %0" : : "m" (idt_operand));
    put_str("idt_init done\n");
 }
+
+enum intr_status intr_enable(){
+   enum intr_status old_status;
+   if(INTR_ON == intr_get_status()){
+      old_status = INTR_ON;
+      return old_status;
+   } else{
+      old_status = INTR_OFF;
+      asm volatile("sti");  // 开中断
+      return old_status;
+   }
+}
+
+enum intr_status intr_disable(){
+   enum intr_status old_status;
+   if(INTR_ON == intr_get_status()){
+      old_status = INTR_ON;
+      asm volatile("cli":::"memory");  // 关中断
+      return old_status;
+   } else{
+      old_status = INTR_OFF;
+      return old_status;
+   }
+}
+
+enum intr_status intr_set_status(enum intr_status status){
+   return status & INTR_ON ? intr_enable() : intr_disable();
+}
+
+enum intr_status intr_get_status(){
+   uint32_t eflags = 0;
+   GET_EFLAGS(eflags);
+   return (EFLAGS_IF & eflags) ? INTR_ON: INTR_OFF;
+}
+
+
+
+
+
+
 
