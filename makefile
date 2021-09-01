@@ -41,6 +41,9 @@ $(BUILD_DIR)/string.o: lib/string.c lib/string.h kernel/debug.h kernel/global.h 
 $(BUILD_DIR)/bitmap.o: lib/kernel/bitmap.c lib/kernel/bitmap.h lib/stdint.h lib/string.h
 	$(CC) $(CFLAGS) $< -o $@
 
+$(BUILD_DIR)/list.o: lib/kernel/list.c lib/kernel/list.h kernel/global.h lib/stdint.h
+	$(CC) $(CFLAGS) $< -o $@
+
 # thread 
 $(BUILD_DIR)/thread.o: thread/thread.c thread/thread.h  lib/string.h kernel/global.h kernel/memory.h lib/stdint.h 
 	$(CC) $(CFLAGS) $< -o $@
